@@ -1,15 +1,17 @@
 extends ./layout.jade
 
 block body
+  - if (signupEmail)
+    p Congratulations on signing up! please login below.
   form(action="/login", method="POST")
     fieldset
       legend Log in
       p
         label Email
-        input(name="user[email]", type="text")
+        input(name="email", type="text")
       p
         label Password
-        input(name="user[password]", type="password")
+        input(name="password", type="password")
       p
         button Submit
       p

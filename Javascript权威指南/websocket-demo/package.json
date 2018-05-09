@@ -12,7 +12,6 @@
   "author": "huanghai_l",
   "license": "MIT",
   "dependencies": {
-    "node-websocket-server": "^1.1.4",
     "nodejs-websocket": "^1.7.1"
   }
 }

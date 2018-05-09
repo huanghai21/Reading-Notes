@@ -1,13 +1,14 @@
 <html>  
     <head>  
         <title>Chat Client</title>  
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
         <script type="text/javascript">
 			window.onload = function() {
 				var nick = prompt("Enter your nickname: ");
 				var input = document.getElementById("input");
 				input.focus();
 
-				var socket = new WebSocket("ws://" + location.host + "/");
+				var socket = new WebSocket("ws://127.0.0.1:8000");//本地访问
 
 				socket.onmessage =  function(event) {
 					var msg = event.data;
@@ -23,6 +24,19 @@
 					socket.send(msg);
 					input.value = "";
 				}
+
+			    //连接关闭的回调方法
+			    socket.onclose = function() {
+			        console.log("websocket close");
+			    }
+			    //连接发生错误的回调方法
+			    socket.onerror = function() {
+			        alert("Webscoket连接发生错误");
+			    }
+			    // 当窗口关闭时，主动关闭websocket连接，防止server端抛异常。
+			    window.onbeforeunload = function() {
+			        socket.close();
+			    }
 			}
 		</script>
     </head>

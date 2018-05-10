@@ -16,3 +16,19 @@ https://www.npmjs.com/package/qs#readme
 
 5、MongoDB collection中的insert返回值需要关注，并不是直接返回插入的数据。
 https://docs.mongodb.com/manual/reference/method/db.collection.insert/
+
+6、MongoDB shell 常用操作命令
+https://blog.csdn.net/lgddb00000/article/details/78809328
+help		// 显示帮助信息
+db.help()	// 显示当前db下所能执行的命令的相关帮助信息
+show dbs	// 显示所有dbName
+use dbName	// 切换到某个dbName的db下
+db.getCollectionNames()	// 查看当前db下所有的集合名称，即数据表的表名
+db.dbName.find()	// 查询dbName集合中的所有数据
+db.dbName.find(query)	// 查询dbName集合中满足query（查询条件）的所有数据
+db.dbName.remove(query)	// 将dbName集合中满足query（查询条件）的所有数据移除掉
+
+7、关于node中使用mongodb的注意点
+{$oid: req.session.loginId} 的方式已经无法继续使用
+findOne 返回的是可以直接使用的文档对象
+find 返回的是cursor(游标)，需要使用toArray转换之后才是可以使用的文档对象数组

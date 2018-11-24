@@ -58,6 +58,6 @@
  [nrm](https://github.com/Pana/nrm) 是一个npm registry的管理工具，可以帮助我们快速的切换本机npm仓库地址，我们可以通过 `nrm add local http://ip:port`为我们本地的私有仓库添加别名，然后就可以使用`nrm use local`进行快速切换，而再也不用去记录IP和端口了。
 
 # 参考文章
-[what is verdaccio?](https://verdaccio.org/docs/zh-CN/what-is-verdaccio) 
-[使用verdaccio 搭建npm私有仓库](http://www.cnblogs.com/tugenhua0707/p/9163167.html) 
-[NodeJS学习：搭建私有NPM](http://www.cnblogs.com/HCJJ/p/9222826.html) 
+1. [what is verdaccio?](https://verdaccio.org/docs/zh-CN/what-is-verdaccio) 
+2. [使用verdaccio 搭建npm私有仓库](http://www.cnblogs.com/tugenhua0707/p/9163167.html) 
+3. [NodeJS学习：搭建私有NPM](http://www.cnblogs.com/HCJJ/p/9222826.html) 

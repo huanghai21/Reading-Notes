@@ -766,3 +766,79 @@ CancelToken.source = function source() {
 
 ## Automatic transforms for JSON data
 ## Client side support for protecting against XSRF
+
+### What is XSRF?
+
+跨站请求伪造 (Cross-site Request Forgery)
+> 它利用了web中用户身份验证的一个漏洞：简单的身份验证只能保证请求发自某个用户的浏览器，却不能保证请求本身是用户自愿发出的。
+
+攻击场景如下
+
+* 用户刚刚登陆了银行网站A，浏览器记录下用户的登录token信息
+  * 银行转账的API请求：`http://www.examplebank.com/withdraw?account=AccoutName&amount=1000&for=PayeeName`
+* 攻击者构造攻击数据(比如发送邮件，或者在独立构造一个攻击站点B)，然后引导用户在点击访问
+  * 攻击者构造如下转账攻击数据：`<img src="http://www.examplebank.com/withdraw?account=Alice&amount=1000&for=Badman">`
+
+由于浏览器的图片src解析属性，会直接发出该HTTP请求，由于请求是从用户的浏览器中发出，并且用户还刚刚登录了A站点，所以请求的cookies信息中会带有登录的token信息，A站点的服务端收到后认为是用户主动发起的转账请求，钱就被转到攻击者的账户里了。
+
+一般有两种常用手段可以防范XSRF 跨站请求伪造 
+
+* 检查Referer字段
+
+  > HTTP头中有一个Referer字段，这个字段用以标明请求来源于哪个地址。在处理敏感数据请求时，通常来说，Referer字段应和请求的地址位于同一域名下。以银行转账为例，Referer字段地址通常应该是转账按钮所在的网页地址，应该也位于A站点之下。而如果是CSRF攻击传来的请求，Referer字段会是包含恶意网址的地址(比如B站点地址)，不会位于A站点之下，这时候服务器就能识别出恶意的访问
+
+* 添加校验token
+
+  > 针对用户的登录访问，服务器生成一个伪随机数token返回给浏览器，浏览器在随后的所有请求中都带上这个伪随机数，服务器每次都校验token的值是否一致。通过CSRF传来的欺骗性攻击中，攻击者无从事先得知这个伪随机数的值，服务端就会因为校验token的值为空或者错误，拒绝这个可疑请求。
+
+  * 服务端可以硬编码(hard code)，也可以针对每个不同的用户首次登录访问，生成一个不同的token(伪随机数)存储在SESSION中
+  * 服务端将token返回，可以将这个token生成到页面上，或者以某个特殊字段写入用户浏览器的cookies中
+  * 客户端的每次请求都带上token值，可以放在headers里的某个字段，也可以放在请求数据中，需要和后端协商好具体传送方式
+  * 服务端每次都校验token值，不存在或者不一致则报错，拒绝后续执行步骤
+
+  由于跨站请求伪造只是利用了用户的登录状态，模拟用户发送请求，攻击者无法事先获取我们前后端约定的token存放方式，和具体的存放key，也就没有办法获取到对应token的value，也没办法轻易地模拟用户发送请求了。后端可以通过token的校验快速识别出跨站请求伪造攻击。
+
+axios就是利用的第二种防御手段 - 在标准浏览器发送的每一次请求中，都可以在通过config的配置，在headers中添加一个特殊的字段名，服务端就可以校验这个字段内容了。
+
+### 源码分析
+
+config中的默认值设置在 lib\defaults.js
+
+```javascript
+  // lib\defaults.js
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
+```
+
+关于 XMLHttpRequest.withCredentials 的知识扩展
+
+> **XMLHttpRequest.withCredentials**  属性是一个[`Boolean`](https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Boolean)类型，它指示了是否该使用类似cookies,authorization headers(头部授权)或者TLS客户端证书这一类资格证书来创建一个跨站点访问控制（cross-site `Access-Control`）请求。在同一个站点下使用`withCredentials属性是无效的`
+
+* 在同一个站点下使用`withCredentials属性是无效的`，即 **永远不会影响到同源请求**
+
+代码位置 lib\adapters\xhr.js， 只针对标准浏览器生效，不针对web worker和react-native
+
+```javascript
+    // Add xsrf header
+    // This is only done if running in a standard browser environment.
+    // Specifically not if we're in a web worker, or react-native.
+    if (utils.isStandardBrowserEnv()) {
+      // Add xsrf header
+      var needReadCookieName = (config.withCredentials || isURLSameOrigin(fullPath));
+      var xsrfValue = needReadCookieName && config.xsrfCookieName ? /* 我们可以自定义这个字段名，如果没有，则使用默认值['XSRF-TOKEN'] */
+        cookies.read(config.xsrfCookieName) :
+        undefined;
+
+      if (xsrfValue) {
+        // 如果从cookies中读取到了对应的值，那么就将它放置在请求的headers字段中
+        // 我们可以自定义这个字段名，如果没有，则使用默认值['X-XSRF-TOKEN']
+        requestHeaders[config.xsrfHeaderName] = xsrfValue;
+      }
+    }
+```
+
+如果 config.withCredentials === true 或者是同源站点的请求，并且 config.xsrfCookieName 设置了值，那么就从cookies中读取这个值，并将它放置在请求的headers字段中，跟随这个请求一并发送到服务端，那么服务端就可以校验头部字段里这个特殊字段名['X-XSRF-TOKEN']是否是之前设置的随机值。
+
+所以axios只是提供了一种方式，可以在需要的情况下，每一次的请求中都从cookies中读取一个约定好的字段内容，并将它放入到headers的一个约定好的字段中，随每一次的请求发送出去。
+
+前端实现没有难点，难点在于前后端约定交互的关键key，需要保持一致。axios默认需要将服务端的校验token存入到cookies中，而不能使用写入页面的方式（比如服务端渲染，直接在页面上添加 {% csrf_token %}之类的标签，将内容写入HTML页面）
